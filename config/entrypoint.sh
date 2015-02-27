@@ -76,8 +76,6 @@ ENDHERE
   etcdctl set ${CLUSTER_PATH}/ceph.mon.keyring < /etc/ceph/ceph.mon.keyring >/dev/null
   etcdctl set ${CLUSTER_PATH}/ceph.client.admin.keyring < /etc/ceph/ceph.client.admin.keyring >/dev/null
     
-  sleep 10
-
   echo "completed initialization for ${MON_NAME}"
   etcdctl set ${CLUSTER_PATH}/done true > /dev/null 2>&1
   etcdctl rm ${CLUSTER_PATH}/lock > /dev/null 2>&1
