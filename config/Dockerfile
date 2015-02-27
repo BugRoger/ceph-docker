@@ -14,8 +14,6 @@
 FROM ceph/base
 MAINTAINER Michael Schmidt "michael.j.schmidt@gmail.com"
 
-env https_proxy http://proxy.wdf.sap.corp:8080
-
 RUN wget https://github.com/coreos/etcd/releases/download/v0.4.6/etcd-v0.4.6-linux-amd64.tar.gz
 RUN tar xzvf etcd-v0.4.6-linux-amd64.tar.gz
 RUN cp etcd-v0.4.6-linux-amd64/etcdctl /usr/local/bin
