@@ -24,7 +24,7 @@ This will generate:
   *  `ceph.mon.keyring` 
   *  `monmap` 
 
-Except the `monmap` the config will be stored in etcd under `/ceph/${CLUSTER}`. 
+Except the `monmap` the config will be stored in etcd under `/ceph-config/${CLUSTER}`. 
 
 In case a configuration for the cluster is found, the configuration will be pulled
 from etcd and written to `/etc/ceph`.
