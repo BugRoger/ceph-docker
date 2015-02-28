@@ -40,6 +40,8 @@ wait until it becomes available.
 The following environment variables can be used to configure the bootstrapping:
 
   * `CLUSTER` is the name of the ceph cluster (defaults to: "ceph") 
+
+Mandatory Configuration:
   * `MON_NAME` is the name of the monitor. Usually the short hostname
   * `MON_IP` is the IP address of the monitor (public)
-  * `ETCDCTL_PEERS` if your etcd cluster isn't available on http://127.0.0.1:4001  
+  * `ETCDCTL_PEERS` is a comma seperated list of etcd peers (e.g. http://192.168.2.4:4001)

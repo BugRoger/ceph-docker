@@ -10,12 +10,17 @@ if [ ! -n "$MON_IP" ]; then
   echo >&2 "ERROR: MON_IP must be defined as the IP address of the monitor"
   exit 1
 fi
+
+if [ ! -n "$ETCDCTL_PEERS" ]; then
+  echo >&2 "ERROR: ETCDCTL_PEERS must be defined"
+  exit 1
+fi
  
 CLUSTER=${CLUSTER:-ceph}
 CLUSTER_PATH=/ceph-config/$CLUSTER
  
-while monitor=$(etcdctl get ${CLUSTER_PATH}/lock 2> /dev/null) ; do
-  echo "Waiting for ${monitor} to finish generating the inital cluster config."
+until etcdctl mk ${CLUSTER_PATH}/lock $MON_NAME --ttl 15 > /dev/null 2>&1 ; do
+  echo "Configuration is locked by another host. Waiting."
   sleep 1
 done
 
@@ -50,14 +55,12 @@ ENDHERE
 
   etcdctl get ${CLUSTER_PATH}/ceph.mon.keyring > /etc/ceph/ceph.mon.keyring
   etcdctl get ${CLUSTER_PATH}/ceph.client.admin.keyring > /etc/ceph/ceph.client.admin.keyring
-  # ceph mon getmap -o /etc/ceph/monmap
+  ceph mon getmap -o /etc/ceph/monmap
 
   cat /etc/ceph/ceph.conf
 else 
   echo "No configuration found for cluster ${CLUSTER}. Generating."
 
-  etcdctl mk ${CLUSTER_PATH}/lock ${MON_NAME} --ttl 15 > /dev/null 2>&1
- 
   fsid=$(uuidgen)
   cat <<ENDHERE >/etc/ceph/ceph.conf
 fsid = $fsid
@@ -78,5 +81,7 @@ ENDHERE
     
   echo "completed initialization for ${MON_NAME}"
   etcdctl set ${CLUSTER_PATH}/done true > /dev/null 2>&1
-  etcdctl rm ${CLUSTER_PATH}/lock > /dev/null 2>&1
 fi
+
+etcdctl rm ${CLUSTER_PATH}/lock > /dev/null 2>&1
+
