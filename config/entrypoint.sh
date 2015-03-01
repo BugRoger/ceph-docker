@@ -18,46 +18,26 @@ fi
  
 CLUSTER=${CLUSTER:-ceph}
 CLUSTER_PATH=/ceph-config/$CLUSTER
+
+if [ -e /etc/ceph/ceph.conf ]; then
+  echo "Found existing config. Done."
+  exit 0
+fi
  
-until etcdctl mk ${CLUSTER_PATH}/lock $MON_NAME --ttl 15 > /dev/null 2>&1 ; do
+# Aquire lock to not run into race conditions with parallel bootstraps
+until etcdctl mk ${CLUSTER_PATH}/lock $MON_NAME --ttl 60 > /dev/null 2>&1 ; do
   echo "Configuration is locked by another host. Waiting."
   sleep 1
 done
 
-etcdctl set ${CLUSTER_PATH}/mon/${MON_NAME} "${MON_IP}:6789" >/dev/null
-
-if etcdctl get ${CLUSTER_PATH}/done > /dev/null 2>%1 ; then
+if etcdctl get --consistent ${CLUSTER_PATH}/done > /dev/null 2>%1 ; then
   echo "Configuration found for cluster ${CLUSTER}. Writing to disk."
- 
-  fsid=$(etcdctl get ${CLUSTER_PATH}/fsid)
-  
-  mon_host=""
-  mon_inital_members=""
-  for monitor in `etcdctl ls ${CLUSTER_PATH}/mon`; do
-    ip=$(etcdctl get $monitor)
-    monitor=${monitor##*/}
 
-    mon_host+=$ip","
-    mon_inital_members+=$monitor","
-  done
-
-  mon_host=${mon_host%,}
-  mon_inital_members=${mon_inital_members%,}
-
-   cat <<ENDHERE >/etc/ceph/ceph.conf
-fsid = $fsid
-mon initial members = ${mon_inital_members}
-mon host = ${mon_host}
-auth cluster required = cephx
-auth service required = cephx
-auth client required = cephx
-ENDHERE
-
+  etcdctl get ${CLUSTER_PATH}/ceph.conf > /etc/ceph/ceph.conf
   etcdctl get ${CLUSTER_PATH}/ceph.mon.keyring > /etc/ceph/ceph.mon.keyring
   etcdctl get ${CLUSTER_PATH}/ceph.client.admin.keyring > /etc/ceph/ceph.client.admin.keyring
-  ceph mon getmap -o /etc/ceph/monmap
 
-  cat /etc/ceph/ceph.conf
+  ceph mon getmap -o /etc/ceph/monmap
 else 
   echo "No configuration found for cluster ${CLUSTER}. Generating."
 
@@ -73,11 +53,11 @@ ENDHERE
 
   ceph-authtool /etc/ceph/ceph.client.admin.keyring --create-keyring --gen-key -n client.admin --set-uid=0 --cap mon 'allow *' --cap osd 'allow *' --cap mds 'allow'
   ceph-authtool /etc/ceph/ceph.mon.keyring --create-keyring --gen-key -n mon. --cap mon 'allow *'
-  monmaptool --create --clobber --add ${MON_NAME} ${MON_IP} --fsid ${fsid}  /etc/ceph/monmap
+  monmaptool --create --add ${MON_NAME} ${MON_IP} --fsid ${fsid}  /etc/ceph/monmap
 
-  etcdctl set ${CLUSTER_PATH}/fsid $fsid > /dev/null
-  etcdctl set ${CLUSTER_PATH}/ceph.mon.keyring < /etc/ceph/ceph.mon.keyring >/dev/null
-  etcdctl set ${CLUSTER_PATH}/ceph.client.admin.keyring < /etc/ceph/ceph.client.admin.keyring >/dev/null
+  etcdctl set ${CLUSTER_PATH}/ceph.conf < /etc/ceph/ceph.conf > /dev/null
+  etcdctl set ${CLUSTER_PATH}/ceph.mon.keyring < /etc/ceph/ceph.mon.keyring > /dev/null
+  etcdctl set ${CLUSTER_PATH}/ceph.client.admin.keyring < /etc/ceph/ceph.client.admin.keyring > /dev/null
     
   echo "completed initialization for ${MON_NAME}"
   etcdctl set ${CLUSTER_PATH}/done true > /dev/null 2>&1
